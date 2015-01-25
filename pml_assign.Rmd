@@ -1,0 +1,92 @@
+---
+title: "Predmachlearn"
+output: html_document
+---
+
+This is my work for the Practical machine learning assignement. The work was done with RStudio Version 0.98.1091 on a Windows 7 computer.
+
+NOTE : The training data and the test data must be in the working directory
+
+## Preparing the data
+
+### Loading and preprocessing the data
+
+First, let's load the libraries used for this assignment and set the seed for every random generation
+
+```{r}
+library(caret)
+library(randomForest)
+library(rpart)
+
+set.seed(777)
+```
+
+Let's now download and load the data into R. NA's values are "NA", "#DIV/0!" and "".
+
+```{r}
+# download.file("https://d396qusza40orc.cloudfront.net/predmachlearn/pml-training.csv", destfile = "./pml-training.csv")
+# download.file("https://d396qusza40orc.cloudfront.net/predmachlearn/pml-testing.csv", destfile = "./pml-testing.csv")
+trainingSet <- read.csv("pml-training.csv", na.strings=c("NA","","#DIV/0!"))
+testSet <- read.csv("pml-testing.csv", na.strings=c("NA","","#DIV/0!"))
+```
+
+### Data cleaning
+Let's remove the irrelevant features and NA's
+
+```{r}
+trainingSet<-trainingSet[,colSums(is.na(trainingSet)) == 0]
+testSet <-testSet[,colSums(is.na(testSet)) == 0]
+trainingSet <- trainingSet[,-(1:7)]
+testSet <- testSet[,-(1:7)]
+```
+
+### Data partitionning
+Let's divide our train data into 2 sub datasets : the training subset (75% of the training set) and "test" subset (25%)
+```{r}
+trainParts<-createDataPartition(trainingSet$classe,p=0.75,list=FALSE)
+subTrain <- trainingSet[trainParts, ] 
+subTest <- trainingSet[-trainParts, ]
+```
+
+## Building our algorithm
+
+### Using Decision Tree
+Let's see first how accurate is the decision tree
+```{r}
+algo1 <- rpart(classe ~ ., data=subTrain, method="class")
+predict1 <- predict(algo1, subTest, type = "class")
+confusionMatrix(predict1, subTest$classe)
+```
+As we can see the accuracy about 74%. Let's see if we can perform better.
+
+### Using Random Forest
+Random Forest is know to be better than decision tree. Let's take a look a this :
+```{r}
+algo2 <- randomForest(classe ~. , data=subTrain, method="class")
+predict2 <- predict(algo2, subTest, type = "class")
+confusionMatrix(predict2, subTest$classe)
+```
+The accuracy is now 99.49%. The sample error would be 0.51%
+
+### Conclusion
+As we were expecting Random Forest algorithm is much more accurate than decision trees. Let's now consider our final algorithm to be the random forest.
+
+## Submission
+Let's now see how this algorithm performs on the test set :
+```{r}
+bestPredict <- predict(algo2, testSet, type = "class")
+bestPredict
+```
+
+Let's create the submission files:
+```{r}
+pml_write_files = function(x){
+  n = length(x)
+  for(i in 1:n){
+    filename = paste0("problem_id_",i,".txt")
+    write.table(x[i],file=filename,quote=FALSE,row.names=FALSE,col.names=FALSE)
+  }
+}
+pml_write_files(bestPredict)
+```
+
